@@ -1,5 +1,7 @@
 # Contributing to pi
 
+Thanks for helping improve pi.
+
 This guide exists to save both sides time.
 
 ## Philosophy
