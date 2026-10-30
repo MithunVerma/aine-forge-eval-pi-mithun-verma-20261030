@@ -117,6 +117,7 @@ import type { FullscreenExitOutput, TuiMode } from "../../core/settings-manager.
 import { BUILTIN_SLASH_COMMANDS } from "../../core/slash-commands.ts";
 import { getSourcePackageKey, type SourceInfo } from "../../core/source-info.ts";
 import { isInstallTelemetryEnabled } from "../../core/telemetry.ts";
+import { findTodos, formatTodoReport } from "../../core/todos.ts";
 import { withBuiltInRenderers } from "../../core/tools/renderers/index.ts";
 import type { TruncationResult } from "../../core/tools/truncate.ts";
 import { hasTrustRequiringProjectResources, ProjectTrustStore } from "../../core/trust-manager.ts";
@@ -3329,6 +3330,11 @@ export class InteractiveMode {
 			if (text === "/hotkeys") {
 				this.handleHotkeysCommand();
 				this.editor.setText("");
+				return;
+			}
+			if (text === "/todos") {
+				this.editor.setText("");
+				await this.handleTodosCommand();
 				return;
 			}
 			if (text === "/fork") {
@@ -6890,6 +6896,21 @@ export class InteractiveMode {
 		this.chatContainer.addChild(new Markdown(changelogMarkdown, 1, 1, this.getMarkdownThemeWithSettings()));
 		this.chatContainer.addChild(new DynamicBorder());
 		this.ui.requestRender();
+	}
+
+	private async handleTodosCommand(): Promise<void> {
+		try {
+			const result = await findTodos(this.sessionManager.getCwd(), {
+				onToolStatus: (status) => this.showManagedToolStatus(status),
+			});
+			const report = formatTodoReport(result).join("\n");
+			this.chatContainer.addChild(new Spacer(1));
+			this.chatContainer.addChild(new ThemedText(() => theme.bold(theme.fg("accent", "TODOs")), 1, 0));
+			this.chatContainer.addChild(new ThemedText(() => report, 1, 0));
+			this.ui.requestRender();
+		} catch (error) {
+			this.showError(`Failed to list TODOs: ${error instanceof Error ? error.message : String(error)}`);
+		}
 	}
 
 	/**
