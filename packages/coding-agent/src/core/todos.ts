@@ -135,29 +135,36 @@ export function formatTodoReport(result: TodoResult): string[] {
 	return report;
 }
 
+// The parts of an `rg --json` event that parseMatchLine reads. Fields are `unknown` because the
+// output is external input and is checked before use.
+interface RgEvent {
+	type?: unknown;
+	data?: {
+		path?: { text?: unknown };
+		line_number?: unknown;
+		lines?: { text?: unknown };
+	};
+}
+
 // Parses one line of `rg --json` output; anything but a match event with a text path and line number is ignored.
 function parseMatchLine(line: string): TodoMatch | undefined {
 	if (!line.trim()) return undefined;
-	let event: any;
+	let event: RgEvent | null;
 	try {
 		event = JSON.parse(line);
 	} catch {
 		return undefined;
 	}
-	if (event.type !== "match") return undefined;
+	if (event?.type !== "match") return undefined;
 
 	const filePath = event.data?.path?.text;
 	const lineNumber = event.data?.line_number;
+	const lineText = event.data?.lines?.text;
 	if (typeof filePath !== "string" || typeof lineNumber !== "number") return undefined;
 
-	const rawText = typeof event.data?.lines?.text === "string" ? event.data.lines.text : "";
 	return {
-		path: toRelativePath(filePath),
+		path: filePath.split(sep).join("/").replace(/^\.\//, ""),
 		line: lineNumber,
-		text: truncateLine(rawText.trim(), MAX_TEXT_LENGTH).text,
+		text: truncateLine((typeof lineText === "string" ? lineText : "").trim(), MAX_TEXT_LENGTH).text,
 	};
-}
-
-function toRelativePath(rgPath: string): string {
-	return rgPath.split(sep).join("/").replace(/^\.\//, "");
 }
